@@ -57,82 +57,114 @@ relatorios.marching.com.br (CNAME → Vercel)
 |---|---|---|
 | id | uuid | Chave primária |
 | nome | text | Nome de exibição (ex: "Lais Rios") |
-| slug | text | URL slug único (ex: "lais-rios") |
+| slug | text | URL slug único (ex: "lais-rios") — UNIQUE |
 | senha_hash | text | Senha de acesso hasheada (bcrypt) |
 | meta_account_id | text | ID da conta de anúncios (ex: act_XXXXX) |
 | ativo | boolean | Liga/desliga o cliente |
 | criado_em | timestamp | Data de criação |
+| atualizado_em | timestamp | Última modificação (auditoria no admin) |
 
 ### Tabela `meta_tokens`
+**Relação:** 1:1 com `clients` (um token por cliente). `client_id` é a chave primária da tabela.
+**Criptografia:** O token é criptografado com AES-256-GCM antes de ser salvo. A chave de criptografia fica em variável de ambiente `TOKEN_ENCRYPTION_KEY` no Vercel (nunca no banco). A descriptografia ocorre apenas no servidor Next.js no momento da sync — nunca exposta ao frontend.
+
 | Campo | Tipo | Descrição |
 |---|---|---|
-| client_id | uuid | FK → clients.id |
-| access_token | text | System User token (criptografado em repouso) |
+| client_id | uuid | PK + FK → clients.id (relação 1:1) |
+| access_token_encrypted | text | System User token criptografado (AES-256-GCM) |
 | atualizado_em | timestamp | Última vez que foi salvo |
 
 ### Tabela `daily_metrics`
+**Granularidade:** 1 linha por cliente por dia (dados diários, não agregados do período).
+**Constraint de unicidade:** `UNIQUE(client_id, data)` — garante que o UPSERT da sync nunca duplique registros.
+
 | Campo | Tipo | Descrição |
 |---|---|---|
 | id | uuid | Chave primária |
 | client_id | uuid | FK → clients.id |
-| data | date | Data da métrica |
-| impressoes | bigint | Total de impressões |
-| cliques | bigint | Total de cliques |
-| alcance | bigint | Alcance único |
-| investido | numeric | Valor investido (R$) |
-| leads | integer | Total de leads |
-| ctr | numeric | Click-through rate (%) |
-| cpc | numeric | Custo por clique (R$) |
-| cpm | numeric | Custo por mil impressões (R$) |
-| cpa | numeric | Custo por aquisição (R$) |
-| roas | numeric | Retorno sobre investimento em anúncio |
-| sincronizado_em | timestamp | Timestamp da última sync |
+| data | date | Data da métrica (1 linha por dia) |
+| impressoes | bigint | Total de impressões do dia |
+| cliques | bigint | Total de cliques do dia |
+| alcance | bigint | Alcance único do dia |
+| investido | numeric | Valor investido no dia (R$) |
+| leads | integer | Total de leads do dia |
+| ctr | numeric | Click-through rate (%) — retornado diretamente pela API |
+| cpc | numeric | Custo por clique (R$) — retornado diretamente pela API |
+| cpm | numeric | Custo por mil impressões (R$) — retornado pela API |
+| cpa | numeric | Custo por aquisição (R$) — extraído de `cost_per_action_type` (tipo: `lead`) |
+| roas | numeric | ROAS — extraído de `purchase_roas` (valor numérico do array) |
+| sincronizado_em | timestamp | Timestamp da última sync bem-sucedida |
 
 ---
 
 ## Páginas
 
 ### `/[slug]` — Dashboard do Cliente
-- Rota pública com proteção por senha (sessão via cookie seguro)
-- Exibe dados dos últimos 30 dias para o cliente do slug
+- Rota pública com proteção por senha
+- **Sessão:** iron-session com cookie `HttpOnly; Secure; SameSite=Lax`, expiração de 24h
+- Se cookie expirar: redirect silencioso para `/[slug]/login`
+- Exibe dados dos últimos 30 dias (série temporal dia a dia, gráficos + KPIs)
 - Layout idêntico ao dashboard atual (dark, neon, MARCHING branding)
 - Mostra timestamp "Última atualização: hoje às 08h"
+- Estado vazio (cliente recém-adicionado sem sync ainda): exibe mensagem "Dados serão atualizados às 08h de amanhã"
 - Se slug não existir → 404
 
 ### `/admin` — Painel de Gestão
-- Protegido por senha master (variável de ambiente no Vercel)
-- Lista todos os clientes com status ativo/inativo
-- Formulário para adicionar novo cliente:
-  - Nome, slug, senha de acesso, Meta Account ID, System User Token
-- Botão "Sincronizar agora" por cliente (trigger manual da sync)
-- Exibe última sincronização de cada cliente
+- Protegido por senha master (`ADMIN_PASSWORD` em variável de ambiente no Vercel)
+- **Sessão:** iron-session separada da sessão dos clientes, expiração de 8h
+- Sem rate limiting de login (admin é uso interno; acesso por URL obscura)
+- Lista todos os clientes com status ativo/inativo e timestamp da última sync
+- Formulário para adicionar novo cliente: Nome, Slug, Senha, Meta Account ID, System User Token
+- Botão "Sincronizar agora" por cliente: chama `POST /api/sync?client_id={id}` com o `SYNC_SECRET`
 
 ### `/api/sync` — Endpoint de Sincronização
-- Recebe chamada do GitHub Actions com secret de autorização
-- Para cada cliente ativo:
-  1. Busca token no Supabase
-  2. Chama Meta Marketing API (campo: insights, período: últimos 30 dias)
-  3. Upsert na tabela `daily_metrics`
-  4. Atualiza `sincronizado_em`
-- Retorna JSON com resultado por cliente (sucesso/erro)
-- Em caso de erro na Meta API: mantém dados existentes, loga o erro
+- **Autorização:** valida header `Authorization: Bearer {SYNC_SECRET}` contra `process.env.SYNC_SECRET`
+- Se header ausente ou inválido → retorna 401 imediatamente
+- Aceita parâmetro opcional `?client_id={id}` para sync individual (usado pelo botão no admin)
+- Sem parâmetro → sincroniza todos os clientes ativos (usado pelo cron)
+- Para cada cliente:
+  1. Descriptografa token (AES-256-GCM com `TOKEN_ENCRYPTION_KEY`)
+  2. Chama Meta API com `time_increment=1` e `date_preset=last_30d` (retorna 30 linhas diárias)
+  3. Fuso: dados no fuso da conta Meta (`America/Sao_Paulo` para contas BR) — armazenados como UTC no Supabase
+  4. Upsert em `daily_metrics` usando constraint `UNIQUE(client_id, data)`
+  5. Atualiza `sincronizado_em`
+- Retorna JSON `{ success: [], errors: [] }` com resultado por cliente
+- Em caso de erro na Meta API: mantém dados existentes, loga o erro no retorno JSON
 
 ---
 
 ## Meta Marketing API
 
-**Versão:** v19.0
+**Versão:** v22.0
 **Autenticação:** System User token (permanent — não expira)
 **Endpoint principal:** `GET /{ad_account_id}/insights`
 
-**Campos puxados:**
+**Parâmetros da chamada:**
 ```
-impressions, clicks, reach, spend, actions (leads),
-ctr, cpc, cpm, cost_per_action_type, purchase_roas
+fields=impressions,clicks,reach,spend,actions,ctr,cpc,cpm,cost_per_action_type,purchase_roas
+date_preset=last_30d
+time_increment=1        ← retorna 1 linha por dia (não agregado)
+level=account
 ```
 
-**Período:** últimos 30 dias (`date_preset=last_30d`)
+**Mapeamento API → banco:**
+| Campo API | Campo no banco | Observação |
+|---|---|---|
+| `impressions` | `impressoes` | Número direto |
+| `clicks` | `cliques` | Número direto |
+| `reach` | `alcance` | Número direto |
+| `spend` | `investido` | Número direto (R$) |
+| `actions[type=lead].value` | `leads` | Extraído do array de actions |
+| `ctr` | `ctr` | Número direto (%) |
+| `cpc` | `cpc` | Número direto (R$) |
+| `cpm` | `cpm` | Número direto (R$) |
+| `cost_per_action_type[type=lead].value` | `cpa` | Extraído do array |
+| `purchase_roas[0].value` | `roas` | Extraído do array |
+
+**Período:** `date_preset=last_30d` com `time_increment=1` — intencional em cada sync para auto-corrigir conversões reportadas com atraso pela Meta.
 **Nível:** account (visão consolidada de todas as campanhas)
+
+**Campos ausentes (zero conversões):** Se `actions`, `cost_per_action_type` ou `purchase_roas` estiverem ausentes na resposta da API (conta sem conversões no dia), gravar `null` nos campos `leads`, `cpa` e `roas` — nunca gravar 0, pois 0 e "sem dado" são semanticamente diferentes.
 
 ---
 
@@ -180,10 +212,12 @@ Registros MX (e-mail) **não são alterados** — e-mails continuam funcionando 
 ## Migração do Projeto Atual
 
 O projeto atual (React + Vite) será migrado para Next.js:
-- Todo o código de componentes React é compatível (sem reescrita)
-- Arquivos `src/components/` e `src/App.tsx` são reaproveitados
-- Adiciona-se: `pages/`, `app/`, `api/` (estrutura Next.js)
-- Remove-se: configuração Vite, bundle script atual
+- Componentes visuais em `src/components/ui/` são 100% compatíveis — reaproveitados sem alteração
+- `src/App.tsx` será desmontado: a lógica de dados vai para Server Components Next.js e os componentes visuais são extraídos para `components/`
+- Roteamento Vite (se houver) é substituído pelo App Router do Next.js
+- Adiciona-se: `app/`, `app/api/` (estrutura Next.js App Router)
+- Remove-se: configuração Vite, bundle script atual (`bundle-artifact.sh`)
+- Tailwind CSS e shadcn/ui já instalados — configuração mantida
 
 ---
 
@@ -191,13 +225,15 @@ O projeto atual (React + Vite) será migrado para Next.js:
 
 | Camada | Tecnologia | Plano |
 |---|---|---|
-| Frontend + Backend | Next.js 14 (App Router) | — |
+| Frontend + Backend | Next.js 15 (App Router) | — |
 | Hospedagem | Vercel | Grátis |
 | Banco de dados | Supabase (PostgreSQL) | Grátis (500MB) |
 | Cron scheduler | GitHub Actions | Grátis |
 | Domínio | relatorios.marching.com.br | Já existente |
 | DNS | Hostinger | Já existente |
-| Meta API | Meta Marketing API v19 | Grátis (uso) |
+| Meta API | Meta Marketing API v22 | Grátis (uso) |
+| Sessão | iron-session | — |
+| Criptografia tokens | AES-256-GCM (Node.js crypto) | — |
 
 **Custo total mensal: R$ 0** para a escala atual.
 
