@@ -1,0 +1,14 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #05070F;
+  --foreground: #E6EAF2;
+}
+
+body {
+  background: #05070F;
+  color: #E6EAF2;
+  font-family: 'DM Sans', 'Segoe UI', sans-serif;
+}
