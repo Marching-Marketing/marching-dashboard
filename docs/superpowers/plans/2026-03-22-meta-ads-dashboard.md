@@ -1586,7 +1586,8 @@ Em Settings → Environment Variables, adicionar todas as variáveis do `.env.lo
 - `TOKEN_ENCRYPTION_KEY`
 - `SYNC_SECRET`
 - `ADMIN_PASSWORD`
-- `SESSION_SECRET`
+- `SESSION_SECRET_CLIENT`
+- `SESSION_SECRET_ADMIN`
 
 - [ ] **Step 3: Adicionar domínio personalizado na Vercel**
 
