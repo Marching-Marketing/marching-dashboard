@@ -101,7 +101,7 @@ export default function DashboardShell({ data }: { data: DashboardData }) {
                     <div className="text-[9px] text-emerald-400 mt-0.5">↑ aceleração</div>
                   </div>
                   <div className="p-3 rounded-xl border border-[#00D1C7]/15 bg-[#05070F]/80">
-                    <div className="text-[9px] text-[#5C6475] uppercase tracking-wider mb-1">Leads Qualif.</div>
+                    <div className="text-[9px] text-[#5C6475] uppercase tracking-wider mb-1">Resultados</div>
                     <div className="text-2xl font-black" style={{ color: "#00D1C7", textShadow: "0 0 15px #00D1C760" }}>10X</div>
                     <div className="text-[9px] text-emerald-400 mt-0.5">↑ vs baseline</div>
                   </div>
@@ -122,14 +122,14 @@ export default function DashboardShell({ data }: { data: DashboardData }) {
               </div>
               <div className="lg:col-span-3">
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-semibold text-[#E6EAF2]">Crescimento Exponencial — Leads 2026</span>
+                  <span className="text-sm font-semibold text-[#E6EAF2]">Crescimento Exponencial — Resultados 2026</span>
                   <span className="text-[10px] text-[#5C6475]">Jan → Dez</span>
                 </div>
                 <GrowthChart />
                 <div className="flex items-center justify-center gap-5 mt-2">
                   <div className="flex items-center gap-1.5">
                     <div className="w-3 h-0.5 rounded" style={{ background: "linear-gradient(to right, #6C3BFF, #00D1C7)" }} />
-                    <span className="text-[10px] text-[#8A94A6]">Leads gerados</span>
+                    <span className="text-[10px] text-[#8A94A6]">Resultados</span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <div className="w-3 h-2 rounded-sm bg-[#6C3BFF]/40" />
@@ -147,9 +147,9 @@ export default function DashboardShell({ data }: { data: DashboardData }) {
             sparkData={[30, 45, 38, 60, 52, 70, 65, 80, 72, 85, 78, 95]} />
           <MetricCard title="Cliques" value={data.metrics.cliques} change={data.metrics.cliquesChange} icon={MousePointerClick} color="#00D1C7"
             sparkData={[20, 30, 28, 45, 40, 55, 50, 62, 58, 72, 68, 80]} />
-          <MetricCard title="Leads Gerados" value={data.metrics.leads} change={data.metrics.leadsChange} icon={Users} color="#A78BFA"
+          <MetricCard title="Resultados" value={data.metrics.leads} change={data.metrics.leadsChange} icon={Users} color="#A78BFA"
             sparkData={[15, 22, 20, 35, 30, 42, 38, 50, 45, 58, 55, 65]} />
-          <MetricCard title="CPA Médio" value={data.metrics.cpa} change={data.metrics.cpaChange} icon={Target} color="#00D1C7"
+          <MetricCard title="Custo por Resultado" value={data.metrics.cpa} change={data.metrics.cpaChange} icon={Target} color="#00D1C7"
             sparkData={[40, 38, 35, 32, 34, 30, 28, 29, 27, 26, 25, 26]} />
         </div>
 
@@ -169,7 +169,7 @@ export default function DashboardShell({ data }: { data: DashboardData }) {
           </div>
           <div className="rounded-xl p-5 border border-[#1a2040] bg-[#0B0F1F]">
             <h3 className="text-sm font-semibold text-[#E6EAF2] mb-1">Taxa de Conversão</h3>
-            <p className="text-xs text-[#5C6475] mb-4">Cliques → Leads</p>
+            <p className="text-xs text-[#5C6475] mb-4">Cliques → Resultados</p>
             <div className="flex flex-col items-center gap-4">
               <DonutChart value={data.ctr} color="#6C3BFF" />
               <div className="w-full space-y-2">
@@ -196,7 +196,7 @@ export default function DashboardShell({ data }: { data: DashboardData }) {
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h3 className="text-sm font-semibold text-[#E6EAF2]">Performance por Canal</h3>
-                <p className="text-xs text-[#5C6475] mt-0.5">ROAS e leads gerados</p>
+                <p className="text-xs text-[#5C6475] mt-0.5">ROAS e resultados gerados</p>
               </div>
               <BarChart3 size={16} className="text-[#5C6475]" />
             </div>
@@ -211,7 +211,7 @@ export default function DashboardShell({ data }: { data: DashboardData }) {
                     </div>
                     <div className="flex justify-between items-center mt-0.5">
                       <span className="text-[10px] text-[#5C6475]">{ch.spend} investidos</span>
-                      <span className="text-[10px] text-[#8A94A6]">{ch.leads} leads</span>
+                      <span className="text-[10px] text-[#8A94A6]">{ch.leads} resultados</span>
                     </div>
                     <div className="mt-1.5 h-1 bg-[#1a2040] rounded-full overflow-hidden">
                       <div className="h-full rounded-full" style={{ width: `${(ch.leads / 312) * 100}%`, background: ch.color }} />
@@ -277,7 +277,7 @@ export default function DashboardShell({ data }: { data: DashboardData }) {
               <Target size={20} className="text-[#A78BFA]" />
             </div>
             <div>
-              <div className="text-xs text-[#5C6475]">Qualidade dos Leads</div>
+              <div className="text-xs text-[#5C6475]">Qualidade dos Resultados</div>
               <div className="text-xl font-bold text-[#E6EAF2]">{data.leadQuality}</div>
               <div className="text-[10px] text-emerald-400 flex items-center gap-0.5 mt-0.5"><ArrowUpRight size={10} /> Score IA MARCHING</div>
             </div>
