@@ -32,17 +32,22 @@ export interface Database {
         Row: Client
         Insert: Omit<Client, 'id' | 'created_at'>
         Update: Partial<Omit<Client, 'id' | 'created_at'>>
+        Relationships: []
       }
       meta_tokens: {
         Row: MetaToken
         Insert: Omit<MetaToken, 'id' | 'created_at' | 'updated_at'>
         Update: Partial<Pick<MetaToken, 'encrypted_token' | 'updated_at'>>
+        Relationships: []
       }
       daily_metrics: {
         Row: DailyMetric
         Insert: Omit<DailyMetric, 'id' | 'created_at'>
         Update: Partial<Omit<DailyMetric, 'id' | 'client_id' | 'date' | 'created_at'>>
+        Relationships: []
       }
     }
+    Views: Record<string, never>
+    Functions: Record<string, { Args: Record<string, unknown>; Returns: unknown }>
   }
 }
