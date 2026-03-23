@@ -1,0 +1,35 @@
+name: Daily Meta Ads Sync
+
+on:
+  schedule:
+    # 08:00 BRT = 11:00 UTC
+    - cron: '0 11 * * *'
+  workflow_dispatch: # Allow manual trigger from GitHub UI
+
+jobs:
+  sync:
+    name: Sync Meta Ads data
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Trigger sync endpoint
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          SYNC_SECRET: ${{ secrets.SYNC_SECRET }}
+        run: |
+          response=$(curl -s -o /tmp/sync_response.json -w "%{http_code}" \
+            -X POST "$APP_URL/api/sync" \
+            -H "Authorization: Bearer $SYNC_SECRET" \
+            -H "Content-Type: application/json")
+
+          echo "HTTP status: $response"
+          echo "Response body:"
+          cat /tmp/sync_response.json
+
+          if [ "$response" != "200" ]; then
+            echo "Sync failed with status $response"
+            exit 1
+          fi
+
+          echo "Sync completed successfully"
