@@ -26,6 +26,9 @@ export interface DailyMetric {
 }
 
 export interface Database {
+  __InternalSupabase: {
+    PostgrestVersion: '12'
+  }
   public: {
     Tables: {
       clients: {
@@ -49,5 +52,7 @@ export interface Database {
     }
     Views: Record<string, never>
     Functions: Record<string, { Args: Record<string, unknown>; Returns: unknown }>
+    Enums: Record<string, never>
+    CompositeTypes: Record<string, never>
   }
 }
