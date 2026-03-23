@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
   const supabase = createServerClient()
   const { data: clients, error: clientsError } = await supabase
     .from('clients')
-    .select('id, slug, name') as { data: Pick<Client, 'id' | 'slug' | 'name'>[] | null; error: Error | null }
+    .select('id, slug, name, ad_account_id') as { data: (Pick<Client, 'id' | 'slug' | 'name'> & { ad_account_id: string | null })[] | null; error: Error | null }
 
   if (clientsError) {
     return NextResponse.json({ error: clientsError.message }, { status: 500 })
@@ -59,10 +59,12 @@ export async function POST(req: NextRequest) {
 
       const accessToken = decrypt(tokenRow.encrypted_token)
 
-      // Fetch Meta insights — adAccountId derived from slug
-      // In production this would be a separate field, but for MARCHING it's the Meta ad account
-      const adAccountId = `act_${client.slug.replace(/-/g, '_')}`
-      const insights = await fetchMetaInsights(adAccountId, accessToken)
+      // Use the stored ad_account_id
+      if (!client.ad_account_id) {
+        results.push({ slug: client.slug, status: 'skipped', error: 'No ad_account_id' })
+        continue
+      }
+      const insights = await fetchMetaInsights(client.ad_account_id, accessToken)
 
       // Upsert metrics
       if (insights.length > 0) {

@@ -34,21 +34,24 @@ export async function POST(req: NextRequest) {
   const session = await requireAdmin()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { name, slug, meta_token } = await req.json()
+  const { name, slug, meta_token, ad_account_id } = await req.json()
 
-  if (!name || !slug || !meta_token) {
-    return NextResponse.json({ error: 'name, slug, meta_token required' }, { status: 400 })
+  if (!name || !slug || !meta_token || !ad_account_id) {
+    return NextResponse.json({ error: 'name, slug, meta_token, ad_account_id required' }, { status: 400 })
   }
 
   const supabase = createServerClient()
+
+  // Normalize ad_account_id — ensure it starts with act_
+  const normalizedAccountId = ad_account_id.startsWith('act_') ? ad_account_id : `act_${ad_account_id}`
 
   // Create client
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: client, error: clientError } = await (supabase as any)
     .from('clients')
-    .insert({ name, slug: slug.toLowerCase().trim() })
-    .select('id, slug, name')
-    .single() as { data: { id: string; slug: string; name: string } | null; error: { message: string } | null }
+    .insert({ name, slug: slug.toLowerCase().trim(), ad_account_id: normalizedAccountId })
+    .select('id, slug, name, ad_account_id')
+    .single() as { data: { id: string; slug: string; name: string; ad_account_id: string } | null; error: { message: string } | null }
 
   if (clientError || !client) return NextResponse.json({ error: clientError?.message ?? 'Insert failed' }, { status: 400 })
 

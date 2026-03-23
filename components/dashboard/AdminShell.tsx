@@ -22,7 +22,7 @@ export default function AdminShell({ clients: initialClients }: AdminShellProps)
   const [syncing, setSyncing] = useState(false)
   const [syncResult, setSyncResult] = useState<string | null>(null)
   const [showAdd, setShowAdd] = useState(false)
-  const [newClient, setNewClient] = useState({ name: '', slug: '', meta_token: '' })
+  const [newClient, setNewClient] = useState({ name: '', slug: '', meta_token: '', ad_account_id: '' })
   const [adding, setAdding] = useState(false)
   const [addError, setAddError] = useState('')
 
@@ -57,7 +57,7 @@ export default function AdminShell({ clients: initialClients }: AdminShellProps)
       const data = await res.json()
       if (res.ok) {
         setClients(prev => [data.client, ...prev])
-        setNewClient({ name: '', slug: '', meta_token: '' })
+        setNewClient({ name: '', slug: '', meta_token: '', ad_account_id: '' })
         setShowAdd(false)
       } else {
         setAddError(data.error ?? 'Erro ao adicionar')
@@ -161,6 +161,14 @@ export default function AdminShell({ clients: initialClients }: AdminShellProps)
                 placeholder="Slug (ex: lais-rios)"
                 value={newClient.slug}
                 onChange={e => setNewClient(p => ({ ...p, slug: e.target.value }))}
+                required
+                className="w-full bg-[#05070F] border border-[#1a2040] text-[#E6EAF2] placeholder-[#5C6475] rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-[#6C3BFF]"
+              />
+              <input
+                type="text"
+                placeholder="ID da Conta de Anúncios (ex: 123456789)"
+                value={newClient.ad_account_id}
+                onChange={e => setNewClient(p => ({ ...p, ad_account_id: e.target.value }))}
                 required
                 className="w-full bg-[#05070F] border border-[#1a2040] text-[#E6EAF2] placeholder-[#5C6475] rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-[#6C3BFF]"
               />
