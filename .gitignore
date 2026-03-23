@@ -2,6 +2,18 @@
 .next/
 out/
 
+# Parcel
+.parcel-cache/
+bundle.html
+
+# Legacy Vite/src files
+src/
+public/
+components.json
+postcss.config.js
+.parcelrc
+README.md
+
 # Logs
 logs
 *.log
