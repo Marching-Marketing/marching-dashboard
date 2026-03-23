@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server'
 import { getIronSession } from 'iron-session'
 import { cookies } from 'next/headers'
-import { adminSessionOptions, type AdminSession } from '@/lib/session'
+import { getAdminSessionOptions, type AdminSession } from '@/lib/session'
 
 export async function POST() {
   const cookieStore = await cookies()
-  const session = await getIronSession<AdminSession>(cookieStore, adminSessionOptions)
+  const session = await getIronSession<AdminSession>(cookieStore, getAdminSessionOptions())
 
   if (!session.isAdmin) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

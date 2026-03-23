@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getIronSession } from 'iron-session'
 import { cookies } from 'next/headers'
 import { timingSafeEqual, createHash } from 'crypto'
-import { adminSessionOptions, type AdminSession } from '@/lib/session'
+import { getAdminSessionOptions, type AdminSession } from '@/lib/session'
 
 export async function POST(req: NextRequest) {
   const { password } = await req.json()
@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
   }
 
   const cookieStore = await cookies()
-  const session = await getIronSession<AdminSession>(cookieStore, adminSessionOptions)
+  const session = await getIronSession<AdminSession>(cookieStore, getAdminSessionOptions())
   session.isAdmin = true
   await session.save()
 

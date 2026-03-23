@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getIronSession } from 'iron-session'
 import { cookies } from 'next/headers'
-import { clientSessionOptions, type ClientSession } from '@/lib/session'
+import { getClientSessionOptions, type ClientSession } from '@/lib/session'
 import { createServerClient } from '@/lib/supabase'
 
 export async function POST(req: NextRequest) {
@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
   }
 
   const cookieStore = await cookies()
-  const session = await getIronSession<ClientSession>(cookieStore, clientSessionOptions)
+  const session = await getIronSession<ClientSession>(cookieStore, getClientSessionOptions())
   session.clientId = client.id
   session.slug = client.slug
   await session.save()

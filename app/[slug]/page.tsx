@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { getIronSession } from 'iron-session'
 import { cookies } from 'next/headers'
-import { clientSessionOptions, type ClientSession } from '@/lib/session'
+import { getClientSessionOptions, type ClientSession } from '@/lib/session'
 import { createServerClient } from '@/lib/supabase'
 import DashboardShell, { type DashboardData } from '@/components/dashboard/DashboardShell'
 import type { DailyMetric, Client } from '@/types/database'
@@ -14,7 +14,7 @@ export default async function ClientDashboardPage({ params }: Props) {
   const { slug } = await params
 
   const cookieStore = await cookies()
-  const session = await getIronSession<ClientSession>(cookieStore, clientSessionOptions)
+  const session = await getIronSession<ClientSession>(cookieStore, getClientSessionOptions())
 
   // Redirect to login if no session or wrong slug
   if (!session.clientId || session.slug !== slug) {

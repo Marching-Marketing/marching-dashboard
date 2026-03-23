@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getIronSession } from 'iron-session'
 import { cookies } from 'next/headers'
-import { adminSessionOptions, type AdminSession } from '@/lib/session'
+import { getAdminSessionOptions, type AdminSession } from '@/lib/session'
 import { createServerClient } from '@/lib/supabase'
 import { encrypt } from '@/lib/crypto'
 
 async function requireAdmin() {
   const cookieStore = await cookies()
-  const session = await getIronSession<AdminSession>(cookieStore, adminSessionOptions)
+  const session = await getIronSession<AdminSession>(cookieStore, getAdminSessionOptions())
   if (!session.isAdmin) {
     return null
   }
