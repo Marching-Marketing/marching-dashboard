@@ -16,7 +16,7 @@ export default async function AdminPage() {
   const supabase = createServerClient()
   const { data: clients } = await supabase
     .from('clients')
-    .select('id, slug, name, created_at, ad_account_id')
+    .select('id, slug, name, created_at, ad_account_ids')
     .order('created_at', { ascending: false })
 
   return <AdminShell clients={clients ?? []} />

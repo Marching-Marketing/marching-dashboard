@@ -3,7 +3,14 @@ import { timingSafeEqual } from 'crypto'
 import { createServerClient } from '@/lib/supabase'
 import { decrypt } from '@/lib/crypto'
 import { fetchMetaInsights } from '@/lib/meta-api'
-import type { Client, MetaToken } from '@/types/database'
+import type { MetaToken } from '@/types/database'
+
+type ClientRow = {
+  id: string
+  slug: string
+  name: string
+  ad_account_ids: string[]
+}
 
 export async function POST(req: NextRequest) {
   // 1. Authorization
@@ -17,10 +24,7 @@ export async function POST(req: NextRequest) {
 
   let authorized = false
   try {
-    authorized = timingSafeEqual(
-      Buffer.from(token),
-      Buffer.from(syncSecret)
-    )
+    authorized = timingSafeEqual(Buffer.from(token), Buffer.from(syncSecret))
   } catch {
     authorized = false
   }
@@ -33,17 +37,16 @@ export async function POST(req: NextRequest) {
   const supabase = createServerClient()
   const { data: clients, error: clientsError } = await supabase
     .from('clients')
-    .select('id, slug, name, ad_account_id') as { data: (Pick<Client, 'id' | 'slug' | 'name'> & { ad_account_id: string | null })[] | null; error: Error | null }
+    .select('id, slug, name, ad_account_ids') as { data: ClientRow[] | null; error: Error | null }
 
   if (clientsError) {
     return NextResponse.json({ error: clientsError.message }, { status: 500 })
   }
 
-  const results: Array<{ slug: string; status: string; rows?: number; error?: string }> = []
+  const results: Array<{ slug: string; status: string; rows?: number; accounts?: number; error?: string }> = []
 
   // 3. Sync each client
-  const clientList = clients ?? []
-  for (const client of clientList) {
+  for (const client of (clients ?? [])) {
     try {
       // Get token
       const { data: tokenRow, error: tokenError } = await supabase
@@ -58,24 +61,45 @@ export async function POST(req: NextRequest) {
       }
 
       const accessToken = decrypt(tokenRow.encrypted_token)
+      const accountIds = client.ad_account_ids ?? []
 
-      // Use the stored ad_account_id
-      if (!client.ad_account_id) {
-        results.push({ slug: client.slug, status: 'skipped', error: 'No ad_account_id' })
+      if (accountIds.length === 0) {
+        results.push({ slug: client.slug, status: 'skipped', error: 'No ad_account_ids' })
         continue
       }
-      const insights = await fetchMetaInsights(client.ad_account_id, accessToken)
 
-      // Upsert metrics
-      if (insights.length > 0) {
-        const rows = insights.map(insight => ({
+      // Fetch insights from ALL accounts and aggregate by date
+      const aggregated = new Map<string, {
+        impressions: number; clicks: number; spend: number; leads: number; conversions: number
+      }>()
+
+      for (const accountId of accountIds) {
+        const insights = await fetchMetaInsights(accountId, accessToken)
+        for (const insight of insights) {
+          const existing = aggregated.get(insight.date)
+          if (existing) {
+            existing.impressions += insight.impressions
+            existing.clicks += insight.clicks
+            existing.spend += insight.spend
+            existing.leads += insight.leads ?? 0
+            existing.conversions += insight.conversions ?? 0
+          } else {
+            aggregated.set(insight.date, {
+              impressions: insight.impressions,
+              clicks: insight.clicks,
+              spend: insight.spend,
+              leads: insight.leads ?? 0,
+              conversions: insight.conversions ?? 0,
+            })
+          }
+        }
+      }
+
+      if (aggregated.size > 0) {
+        const rows = Array.from(aggregated.entries()).map(([date, metrics]) => ({
           client_id: client.id,
-          date: insight.date,
-          impressions: insight.impressions,
-          clicks: insight.clicks,
-          spend: insight.spend,
-          leads: insight.leads,
-          conversions: insight.conversions,
+          date,
+          ...metrics,
         }))
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -88,9 +112,9 @@ export async function POST(req: NextRequest) {
           continue
         }
 
-        results.push({ slug: client.slug, status: 'synced', rows: rows.length })
+        results.push({ slug: client.slug, status: 'synced', rows: rows.length, accounts: accountIds.length })
       } else {
-        results.push({ slug: client.slug, status: 'synced', rows: 0 })
+        results.push({ slug: client.slug, status: 'synced', rows: 0, accounts: accountIds.length })
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error'
