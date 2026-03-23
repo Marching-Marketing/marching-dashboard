@@ -22,7 +22,7 @@ export async function fetchMetaInsights(
   const params = new URLSearchParams({
     fields: 'date_start,impressions,clicks,spend,actions',
     time_increment: '1',
-    date_preset: 'last_30_days',
+    date_preset: 'last_30d',
     access_token: accessToken,
     limit: '31',
   })
